@@ -1,0 +1,20 @@
+# Project: Save a Stray V2
+
+## Tech Stack & Architecture
+- Language: Kotlin
+- UI Framework: Jetpack Compose (Strictly use Compose, do not use old XML layouts)
+- Architecture: MVVM (Model-View-ViewModel)
+- Backend & Database: Firebase Authentication and Cloud Firestore
+- Networking: Retrofit (Set up base API interfaces for a future ML Matching Engine)
+
+## Database Schema (Firestore)
+1. **Users Collection**
+   - Fields: uid (String), email (String), role (Enum: ADOPTER, INDIVIDUAL, SHELTER), location (GeoPoint), name/orgName (String)
+2. **Pets Collection**
+   - Fields: petId (String), ownerId (String - ref to Users), name (String), breed (String), location (GeoPoint), vaccinationStatus (Boolean), personalityTraits (List<String>), status (Enum: AVAILABLE, PENDING, ADOPTED)
+
+## Agent Operational Rules
+- Never auto-execute terminal commands without user permission.
+- Prioritize clean, modular composables for the UI. 
+- When handling user registration, branch the UI flow immediately based on the selected user role.
+- Always implement clean separation of concerns using the MVVM pattern.
