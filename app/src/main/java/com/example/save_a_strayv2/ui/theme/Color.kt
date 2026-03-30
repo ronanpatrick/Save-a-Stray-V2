@@ -2,10 +2,19 @@ package com.example.save_a_strayv2.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val Purple80 = Color(0xFFD0BCFF)
-val PurpleGrey80 = Color(0xFFCCC2DC)
-val Pink80 = Color(0xFFEFB8C8)
+// Brand palette — warm amber/teal rescue theme
+val BrandOrange       = Color(0xFFE8622A) // Primary CTA
+val BrandOrangeLight  = Color(0xFFFFB08A) // Primary container light
+val BrandOrangeDark   = Color(0xFF8C2D00) // Primary container dark
 
-val Purple40 = Color(0xFF6650a4)
-val PurpleGrey40 = Color(0xFF625b71)
-val Pink40 = Color(0xFF7D5260)
+val BrandTeal         = Color(0xFF00796B) // Secondary
+val BrandTealLight    = Color(0xFF9BDDD5) // Secondary container light
+val BrandTealDark     = Color(0xFF004D43) // Secondary container dark
+
+val WarmCream         = Color(0xFFFFF8F5) // Background light
+val WarmSurface       = Color(0xFFFFEDE4) // Surface light
+
+val NeutralDark       = Color(0xFF1A1A1A) // On-background dark
+val NeutralMid        = Color(0xFF5C5047) // On-surface variant
+val ErrorRed          = Color(0xFFBA1A1A)
+val ErrorRedLight     = Color(0xFFFFDAD6)
