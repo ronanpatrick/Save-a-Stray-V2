@@ -44,6 +44,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.material.icons.extended)
 
     // Jetpack Compose (BOM manages all Compose versions)
     implementation(platform(libs.androidx.compose.bom))
@@ -57,10 +58,19 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
 
+    // Cloudinary
+    implementation(libs.cloudinary)
+
     // Hilt - Dependency Injection
     implementation(libs.hilt.android)
     kapt(libs.hilt.android.compiler)
     implementation(libs.hilt.navigation.compose)
+
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+
+    // Image Loading
+    implementation(libs.coil.compose)
 
     // Retrofit - Networking
     implementation(libs.retrofit)

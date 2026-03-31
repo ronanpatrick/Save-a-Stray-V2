@@ -3,6 +3,7 @@ package com.example.save_a_strayv2.ui
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -10,6 +11,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -21,21 +23,24 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Pets
@@ -45,11 +50,13 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +70,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -72,7 +80,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.save_a_strayv2.model.UserRole
 import com.example.save_a_strayv2.ui.theme.SaveaStrayV2Theme
 import com.example.save_a_strayv2.viewmodel.RegistrationViewModel
@@ -82,9 +90,13 @@ import com.example.save_a_strayv2.viewmodel.RegistrationViewModel
 // ─────────────────────────────────────────────────────────────────────────────
 
 private fun UserRole.icon(): ImageVector = when (this) {
-    UserRole.ADOPTER    -> Icons.Filled.Favorite
-    UserRole.INDIVIDUAL -> Icons.Filled.Home
-    UserRole.SHELTER    -> Icons.Filled.Business
+    UserRole.INDIVIDUAL -> Icons.Filled.Person
+    UserRole.SHELTER    -> Icons.Filled.Groups
+}
+
+private fun UserRole.subtitle(): String = when (this) {
+    UserRole.INDIVIDUAL -> "Adopt or rehome pets as an individual"
+    UserRole.SHELTER    -> "Manage animals as an organization or rescue"
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -93,131 +105,185 @@ private fun UserRole.icon(): ImageVector = when (this) {
 
 @Composable
 fun RegistrationScreen(
-    viewModel: RegistrationViewModel = viewModel(),
+    viewModel: RegistrationViewModel = hiltViewModel(),
     onNavigateToLogin: () -> Unit = {}
 ) {
+    val focusManager = LocalFocusManager.current
+
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color    = MaterialTheme.colorScheme.background
+        color = MaterialTheme.colorScheme.background
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
+                .imePadding()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(40.dp))
 
             // ── Hero header ───────────────────────────────────────────────────
             RegistrationHeader()
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(36.dp))
 
-            // ── Role selector cards ───────────────────────────────────────────
+            // ── Welcome prompt ────────────────────────────────────────────────
             Text(
-                text  = "I am a…",
+                text = "Choose your account type",
                 style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.fillMaxWidth()
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "Select how you'll use Save a Stray",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(20.dp))
 
-            RoleSelectionRow(
+            // ── Two large role selection cards ────────────────────────────────
+            RoleSelectionColumn(
                 selectedRole = viewModel.selectedRole,
                 onRoleSelected = viewModel::onRoleSelected
             )
 
-            // ── Dynamic form fields ───────────────────────────────────────────
+            // ── Dynamic form fields (progressive disclosure) ──────────────────
             AnimatedVisibility(
                 visible = viewModel.selectedRole != null,
-                enter   = fadeIn(tween(300)) + expandVertically(tween(300)),
-                exit    = fadeOut(tween(200)) + shrinkVertically(tween(200))
+                enter = fadeIn(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ) + expandVertically(
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioLowBouncy,
+                        stiffness = Spring.StiffnessLow
+                    ),
+                    expandFrom = Alignment.Top
+                ) + slideInVertically(
+                    initialOffsetY = { it / 5 },
+                    animationSpec = spring(
+                        dampingRatio = Spring.DampingRatioMediumBouncy,
+                        stiffness = Spring.StiffnessMediumLow
+                    )
+                ),
+                exit = fadeOut(tween(150)) + shrinkVertically(tween(200))
             ) {
                 Column {
                     Spacer(Modifier.height(28.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    HorizontalDivider(
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                        thickness = 1.dp
+                    )
                     Spacer(Modifier.height(24.dp))
+
+                    // Section title
+                    Text(
+                        text = "Account details",
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        letterSpacing = 0.3.sp
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "Fill in your information to get started",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(20.dp))
 
                     // ── Role-branched name field ──────────────────────────────
                     AnimatedContent(
                         targetState = viewModel.selectedRole,
                         transitionSpec = {
-                            fadeIn(tween(250)) togetherWith fadeOut(tween(200))
+                            (fadeIn(spring(stiffness = Spring.StiffnessMedium))
+                                    togetherWith fadeOut(tween(150)))
                         },
                         label = "RoleBranch"
                     ) { role ->
                         when (role) {
-                            UserRole.ADOPTER, UserRole.INDIVIDUAL -> {
+                            UserRole.INDIVIDUAL -> {
                                 StrayTextField(
-                                    value       = viewModel.name,
+                                    value = viewModel.name,
                                     onValueChange = viewModel::onNameChanged,
-                                    label       = "Full Name",
+                                    label = "Full Name",
                                     leadingIcon = Icons.Filled.Person,
-                                    imeAction   = ImeAction.Next
+                                    imeAction = ImeAction.Next
                                 )
                             }
                             UserRole.SHELTER -> {
                                 StrayTextField(
-                                    value       = viewModel.orgName,
+                                    value = viewModel.orgName,
                                     onValueChange = viewModel::onOrgNameChanged,
-                                    label       = "Organization Name",
+                                    label = "Organization Name",
                                     leadingIcon = Icons.Filled.Business,
-                                    imeAction   = ImeAction.Next
+                                    imeAction = ImeAction.Next
                                 )
                             }
                             null -> {}
                         }
                     }
 
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     // ── Email ─────────────────────────────────────────────────
                     StrayTextField(
-                        value         = viewModel.email,
+                        value = viewModel.email,
                         onValueChange = viewModel::onEmailChanged,
-                        label         = "Email Address",
-                        leadingIcon   = Icons.Filled.Email,
-                        keyboardType  = KeyboardType.Email,
-                        imeAction     = ImeAction.Next
+                        label = "Email Address",
+                        leadingIcon = Icons.Filled.Email,
+                        keyboardType = KeyboardType.Email,
+                        imeAction = ImeAction.Next
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     // ── Password ──────────────────────────────────────────────
                     StrayTextField(
-                        value         = viewModel.password,
+                        value = viewModel.password,
                         onValueChange = viewModel::onPasswordChanged,
-                        label         = "Password",
-                        leadingIcon   = Icons.Filled.Lock,
-                        isPassword    = true,
+                        label = "Password",
+                        leadingIcon = Icons.Filled.Lock,
+                        isPassword = true,
                         passwordVisible = viewModel.passwordVisible,
                         onTogglePasswordVisibility = viewModel::togglePasswordVisibility,
-                        imeAction     = ImeAction.Next
+                        imeAction = ImeAction.Next
                     )
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(14.dp))
 
                     // ── Confirm Password ──────────────────────────────────────
                     StrayTextField(
-                        value         = viewModel.confirmPassword,
+                        value = viewModel.confirmPassword,
                         onValueChange = viewModel::onConfirmPasswordChanged,
-                        label         = "Confirm Password",
-                        leadingIcon   = Icons.Filled.Lock,
-                        isPassword    = true,
+                        label = "Confirm Password",
+                        leadingIcon = Icons.Filled.Lock,
+                        isPassword = true,
                         passwordVisible = viewModel.confirmPasswordVisible,
                         onTogglePasswordVisibility = viewModel::toggleConfirmPasswordVisibility,
-                        imeAction     = ImeAction.Done
+                        imeAction = ImeAction.Done,
+                        onDone = {
+                            focusManager.clearFocus()
+                            viewModel.onSubmit()
+                        }
                     )
 
                     // ── Form error banner ─────────────────────────────────────
                     AnimatedVisibility(
                         visible = viewModel.formError != null,
-                        enter   = fadeIn() + expandVertically(),
-                        exit    = fadeOut() + shrinkVertically()
+                        enter = fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                                expandVertically(spring(stiffness = Spring.StiffnessMedium)),
+                        exit = fadeOut() + shrinkVertically()
                     ) {
                         viewModel.formError?.let { error ->
-                            Spacer(Modifier.height(12.dp))
+                            Spacer(Modifier.height(14.dp))
                             ErrorBanner(message = error)
                         }
                     }
@@ -226,26 +292,44 @@ fun RegistrationScreen(
 
                     // ── Submit button ─────────────────────────────────────────
                     Button(
-                        onClick  = viewModel::onSubmit,
+                        onClick = {
+                            focusManager.clearFocus()
+                            viewModel.onSubmit()
+                        },
+                        enabled = !viewModel.isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(56.dp),
-                        shape    = RoundedCornerShape(16.dp),
-                        colors   = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.primary
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                        ),
+                        elevation = ButtonDefaults.buttonElevation(
+                            defaultElevation = 2.dp,
+                            pressedElevation = 6.dp
                         )
                     ) {
-                        Icon(
-                            imageVector  = Icons.Filled.Pets,
-                            contentDescription = null,
-                            modifier     = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Text(
-                            text     = "Create Account",
-                            style    = MaterialTheme.typography.labelLarge,
-                            fontSize = 16.sp
-                        )
+                        if (viewModel.isLoading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                strokeWidth = 2.5.dp
+                            )
+                        } else {
+                            Icon(
+                                imageVector = Icons.Filled.Pets,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                text = "Create Account",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold,
+                                letterSpacing = 0.5.sp
+                            )
+                        }
                     }
                 }
             }
@@ -255,16 +339,17 @@ fun RegistrationScreen(
             // ── Login link ────────────────────────────────────────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.Center
+                horizontalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(bottom = 16.dp)
             ) {
                 Text(
-                    text  = "Already have an account?",
+                    text = "Already have an account?",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 TextButton(onClick = onNavigateToLogin) {
                     Text(
-                        text  = "Sign In",
+                        text = "Sign In",
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.primary
@@ -272,7 +357,7 @@ fun RegistrationScreen(
                 }
             }
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(8.dp))
         }
     }
 }
@@ -294,137 +379,187 @@ private fun RegistrationHeader() {
                     Brush.linearGradient(
                         listOf(
                             MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary
+                            MaterialTheme.colorScheme.tertiary
                         )
                     )
                 )
-                .shadow(8.dp, RoundedCornerShape(28.dp))
+                .shadow(12.dp, RoundedCornerShape(28.dp))
         ) {
             Icon(
-                imageVector        = Icons.Filled.Pets,
+                imageVector = Icons.Filled.Pets,
                 contentDescription = "Save a Stray",
-                tint               = Color.White,
-                modifier           = Modifier.size(48.dp)
+                tint = Color.White,
+                modifier = Modifier.size(48.dp)
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(Modifier.height(24.dp))
 
         Text(
-            text      = "Join Save a Stray",
-            style     = MaterialTheme.typography.headlineMedium,
+            text = "Join Save a Stray",
+            style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.ExtraBold,
-            color     = MaterialTheme.colorScheme.onBackground
+            color = MaterialTheme.colorScheme.onBackground
         )
-        Spacer(Modifier.height(6.dp))
+        Spacer(Modifier.height(8.dp))
         Text(
-            text      = "Create your account and help find\nevery stray a loving home.",
-            style     = MaterialTheme.typography.bodyMedium,
-            color     = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
+            text = "Create your account and help find\nevery stray a loving home.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+            lineHeight = 24.sp
         )
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Role selection row — three animated cards
+// Role selection — two cards stacked vertically
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun RoleSelectionRow(
+private fun RoleSelectionColumn(
     selectedRole: UserRole?,
     onRoleSelected: (UserRole) -> Unit
 ) {
-    Row(
-        modifier            = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         UserRole.entries.forEach { role ->
-            RoleCard(
-                role       = role,
+            LargeRoleCard(
+                role = role,
                 isSelected = selectedRole == role,
-                onClick    = { onRoleSelected(role) },
-                modifier   = Modifier.weight(1f)
+                onClick = { onRoleSelected(role) }
             )
         }
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Individual role card
+// Large role card
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
-private fun RoleCard(
+private fun LargeRoleCard(
     role: UserRole,
     isSelected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val elevation by animateFloatAsState(
-        targetValue = if (isSelected) 8f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+    val elevation by animateDpAsState(
+        targetValue = if (isSelected) 6.dp else 0.dp,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "cardElevation"
     )
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 1.04f else 1f,
-        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (isSelected) 1.02f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
         label = "cardScale"
     )
 
     Card(
-        onClick   = onClick,
-        modifier  = modifier
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
             .graphicsLayer {
                 scaleX = scale
                 scaleY = scale
             },
-        shape     = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = elevation.dp),
-        colors    = CardDefaults.cardColors(
+        shape = RoundedCornerShape(20.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = elevation),
+        colors = CardDefaults.cardColors(
             containerColor = if (isSelected)
                 MaterialTheme.colorScheme.primaryContainer
             else
-                MaterialTheme.colorScheme.surface
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
         ),
-        border    = if (isSelected) BorderStroke(
-            2.dp,
-            MaterialTheme.colorScheme.primary
-        ) else BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = if (isSelected)
+            BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+        else
+            BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f))
     ) {
-        Column(
-            modifier            = Modifier
+        Row(
+            modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp, horizontal = 8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Icon(
-                imageVector        = role.icon(),
-                contentDescription = role.displayName,
-                tint               = if (isSelected)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier           = Modifier.size(28.dp)
-            )
-            Text(
-                text      = role.displayName,
-                style     = MaterialTheme.typography.labelMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                color     = if (isSelected)
-                    MaterialTheme.colorScheme.onPrimaryContainer
-                else
-                    MaterialTheme.colorScheme.onSurface,
-                textAlign = TextAlign.Center
-            )
-            // Checkmark badge for selected state
-            AnimatedVisibility(visible = isSelected) {
+            // Circular icon badge — gradient when selected
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isSelected)
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.tertiary
+                                )
+                            )
+                        else
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surfaceVariant
+                                )
+                            )
+                    )
+            ) {
                 Icon(
-                    imageVector        = Icons.Filled.CheckCircle,
+                    imageVector = role.icon(),
+                    contentDescription = role.displayName,
+                    tint = if (isSelected)
+                        Color.White
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+
+            // Text content
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = role.displayName,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(Modifier.height(3.dp))
+                Text(
+                    text = role.subtitle(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isSelected)
+                        MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f)
+                    else
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+            }
+
+            // Checkmark
+            AnimatedVisibility(
+                visible = isSelected,
+                enter = fadeIn(spring(stiffness = Spring.StiffnessMedium)) +
+                        expandVertically(spring(stiffness = Spring.StiffnessMedium)),
+                exit = fadeOut() + shrinkVertically()
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.CheckCircle,
                     contentDescription = "Selected",
-                    tint               = MaterialTheme.colorScheme.primary,
-                    modifier           = Modifier.size(16.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp)
                 )
             }
         }
@@ -432,7 +567,7 @@ private fun RoleCard(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared text field component
+// Shared text field
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Composable
@@ -446,7 +581,8 @@ private fun StrayTextField(
     passwordVisible: Boolean = false,
     onTogglePasswordVisibility: (() -> Unit)? = null,
     keyboardType: KeyboardType = KeyboardType.Text,
-    imeAction: ImeAction = ImeAction.Next
+    imeAction: ImeAction = ImeAction.Next,
+    onDone: (() -> Unit)? = null
 ) {
     val visualTransformation = if (isPassword && !passwordVisible)
         PasswordVisualTransformation()
@@ -454,17 +590,29 @@ private fun StrayTextField(
         VisualTransformation.None
 
     OutlinedTextField(
-        value             = value,
-        onValueChange     = onValueChange,
-        label             = { Text(label) },
-        leadingIcon       = {
-            Icon(imageVector = leadingIcon, contentDescription = label)
+        value = value,
+        onValueChange = onValueChange,
+        label = {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium
+            )
         },
-        trailingIcon      = if (isPassword) {
+        leadingIcon = {
+            Icon(
+                imageVector = leadingIcon,
+                contentDescription = label,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        trailingIcon = if (isPassword) {
             {
-                IconButton(onClick = { onTogglePasswordVisibility?.invoke() }) {
+                IconButton(
+                    onClick = { onTogglePasswordVisibility?.invoke() },
+                    modifier = Modifier.size(48.dp) // HCI: minimum 48dp touch target
+                ) {
                     Icon(
-                        imageVector        = if (passwordVisible)
+                        imageVector = if (passwordVisible)
                             Icons.Filled.Visibility
                         else
                             Icons.Filled.VisibilityOff,
@@ -477,13 +625,24 @@ private fun StrayTextField(
             }
         } else null,
         visualTransformation = visualTransformation,
-        keyboardOptions   = KeyboardOptions(
+        keyboardOptions = KeyboardOptions(
             keyboardType = if (isPassword) KeyboardType.Password else keyboardType,
-            imeAction    = imeAction
+            imeAction = imeAction
         ),
-        singleLine        = true,
-        shape             = RoundedCornerShape(14.dp),
-        modifier          = modifier.fillMaxWidth()
+        keyboardActions = KeyboardActions(
+            onDone = { onDone?.invoke() }
+        ),
+        singleLine = true,
+        shape = RoundedCornerShape(14.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            cursorColor = MaterialTheme.colorScheme.primary
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(64.dp)
     )
 }
 
@@ -498,20 +657,22 @@ private fun ErrorBanner(message: String) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.errorContainer)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment    = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Icon(
-            imageVector        = Icons.Filled.CheckCircle,
+            imageVector = Icons.Filled.ErrorOutline,
             contentDescription = null,
-            tint               = MaterialTheme.colorScheme.error,
-            modifier           = Modifier.size(20.dp)
+            tint = MaterialTheme.colorScheme.error,
+            modifier = Modifier.size(20.dp)
         )
         Text(
-            text  = message,
+            text = message,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error
+            color = MaterialTheme.colorScheme.onErrorContainer,
+            fontWeight = FontWeight.Medium,
+            lineHeight = 18.sp
         )
     }
 }

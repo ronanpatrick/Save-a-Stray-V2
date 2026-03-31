@@ -4,13 +4,26 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.example.save_a_strayv2.model.UserRole
+import com.example.save_a_strayv2.repository.AuthRepository
+import com.example.save_a_strayv2.repository.AuthResult
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 /**
- * Holds the UI state for the multi-step registration form.
- * Branching occurs after the user picks a [UserRole].
+ * Holds the UI state for the progressive-disclosure registration form.
+ * The user first picks [UserRole.INDIVIDUAL] or [UserRole.SHELTER],
+ * then the credential fields animate into view.
  */
-class RegistrationViewModel : ViewModel() {
+@HiltViewModel
+class RegistrationViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
+
+    var isLoading: Boolean by mutableStateOf(false)
+        private set
 
     // ── Step 1: Role selection ────────────────────────────────────────────────
     var selectedRole: UserRole? by mutableStateOf(null)
@@ -25,7 +38,7 @@ class RegistrationViewModel : ViewModel() {
         private set
 
     // ── Step 2: Role-branched name fields ─────────────────────────────────────
-    /** Used by ADOPTER and INDIVIDUAL */
+    /** Used by INDIVIDUAL */
     var name: String by mutableStateOf("")
         private set
     /** Used by SHELTER only */
@@ -80,7 +93,7 @@ class RegistrationViewModel : ViewModel() {
             return false
         }
         when (selectedRole) {
-            UserRole.ADOPTER, UserRole.INDIVIDUAL -> {
+            UserRole.INDIVIDUAL -> {
                 if (name.isBlank()) {
                     formError = "Full name is required."
                     return false
@@ -101,6 +114,30 @@ class RegistrationViewModel : ViewModel() {
     /** Called when the form passes validation. Real auth logic will live in the Repository. */
     fun onSubmit() {
         if (!validate()) return
-        // TODO: call AuthRepository.register(email, password, buildUser())
+        
+        isLoading = true
+        formError = null
+        
+        viewModelScope.launch {
+            val result = authRepository.register(
+                email = email,
+                password = password,
+                role = selectedRole!!,
+                name = name,
+                orgName = orgName
+            )
+            
+            isLoading = false
+            when (result) {
+                is AuthResult.Success -> {
+                    // Registration successful.
+                    // The NavHost in MainActivity will observe the Firebase Auth state change 
+                    // and automatically route to the Main screen.
+                }
+                is AuthResult.Error -> {
+                    formError = result.message
+                }
+            }
+        }
     }
 }

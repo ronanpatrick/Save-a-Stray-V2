@@ -5,8 +5,8 @@ import com.google.firebase.firestore.GeoPoint
 data class User(
     val uid: String = "",
     val email: String = "",
-    val role: UserRole = UserRole.ADOPTER,
-    val name: String = "",          // Used by ADOPTER and INDIVIDUAL
+    val role: UserRole = UserRole.INDIVIDUAL,
+    val name: String = "",          // Used by INDIVIDUAL
     val orgName: String = "",       // Used by SHELTER
     val location: GeoPoint? = null
 )
