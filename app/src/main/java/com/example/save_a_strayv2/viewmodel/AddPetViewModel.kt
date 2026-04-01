@@ -79,7 +79,7 @@ class AddPetViewModel @Inject constructor(
     fun onSubmit() {
         if (!validate()) return
 
-        val currentUserUid = authRepository.currentUser?.uid
+        val currentUserUid = authRepository.currentUser?.id
         if (currentUserUid == null) {
             formError = "You must be signed in to register an animal."
             return
@@ -104,22 +104,25 @@ class AddPetViewModel @Inject constructor(
                     val mainUpload = petRepository.uploadImage(mainImageUri!!)
                     if (mainUpload.isFailure) {
                         formError = "Failed to upload Profile Picture."
+                        isLoading = false
                         return@launch
                     }
                     finalMainImageUrl = mainUpload.getOrThrow()
                 }
 
-                // Upload gallery images concurrently or sequentially
+                // Upload gallery images
                 val finalGalleryUrls = mutableListOf<String>()
                 for (uri in galleryUris) {
                     val galleryUpload = petRepository.uploadImage(uri)
                     if (galleryUpload.isFailure) {
                         formError = "Failed to upload one of the additional photos."
+                        isLoading = false
                         return@launch
                     }
                     finalGalleryUrls.add(galleryUpload.getOrThrow())
                 }
 
+                // FIXED MAPPING BELOW
                 val newPet = Pet(
                     ownerId = currentUserUid,
                     name = name.trim(),
@@ -130,14 +133,13 @@ class AddPetViewModel @Inject constructor(
                     vaccinationStatus = vaccinationStatus,
                     personalityTraits = traitsList,
                     medicalNotes = finalMedicalNotes,
-                    location = null,
-                    status = adoptionStatus,
+                    adoptionStatus = adoptionStatus,
                     mainImageUrl = finalMainImageUrl,
-                    galleryUrls = finalGalleryUrls
+                    gallery_urls = finalGalleryUrls // Changed from galleryUrls to gallery_urls
                 )
 
                 val result = petRepository.addPet(newPet)
-                
+
                 result.onSuccess {
                     isSuccess = true
                 }.onFailure { exception ->

@@ -1,9 +1,18 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.services)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.legacy.kapt)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+import java.util.Properties
+import java.io.FileInputStream
+
+val localProperties = Properties()
+val localPropertiesFile = rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(FileInputStream(localPropertiesFile))
 }
 
 android {
@@ -18,6 +27,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Injecting Supabase keys from local.properties
+        val supabaseUrl = localProperties.getProperty("SUPABASE_URL") ?: ""
+        val supabaseKey = localProperties.getProperty("SUPABASE_KEY") ?: ""
+        
+        // Ensure values are properly quoted for BuildConfig
+        fun quote(s: String) = if (s.startsWith("\"") && s.endsWith("\"")) s else "\"$s\""
+        
+        buildConfigField("String", "SUPABASE_URL", quote(supabaseUrl))
+        buildConfigField("String", "SUPABASE_KEY", quote(supabaseKey))
     }
 
     buildTypes {
@@ -35,6 +54,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -53,13 +73,17 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
-    // Firebase (BOM manages all Firebase versions)
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
+    // Supabase
+    implementation(platform(libs.supabase.bom))
+    implementation(libs.supabase.auth)
+    implementation(libs.supabase.postgrest)
+    implementation(libs.supabase.storage)
 
-    // Cloudinary
-    implementation(libs.cloudinary)
+    // Ktor Android Client (needed by Supabase on Android)
+    implementation(libs.ktor.client.android)
+    implementation(libs.kotlinx.serialization.json)
+    implementation("io.ktor:ktor-client-android:3.0.0")
+    implementation("io.ktor:ktor-client-core:3.0.0")
 
     // Hilt - Dependency Injection
     implementation(libs.hilt.android)

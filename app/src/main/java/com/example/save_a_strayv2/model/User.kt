@@ -1,12 +1,12 @@
 package com.example.save_a_strayv2.model
 
-import com.google.firebase.firestore.GeoPoint
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 
+@Serializable
 data class User(
-    val uid: String = "",
-    val email: String = "",
-    val role: UserRole = UserRole.INDIVIDUAL,
-    val name: String = "",          // Used by INDIVIDUAL
-    val orgName: String = "",       // Used by SHELTER
-    val location: GeoPoint? = null
+    @SerialName("id") val id: String = "",
+    @SerialName("email") val email: String = "",
+    @SerialName("role") val role: UserRole = UserRole.INDIVIDUAL,
+    @SerialName("name") val name: String = ""
 )

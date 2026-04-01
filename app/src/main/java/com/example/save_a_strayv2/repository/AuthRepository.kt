@@ -2,13 +2,14 @@ package com.example.save_a_strayv2.repository
 
 import com.example.save_a_strayv2.model.User
 import com.example.save_a_strayv2.model.UserRole
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.FirebaseUser
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.channels.awaitClose
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.status.SessionStatus
+import io.github.jan.supabase.auth.user.UserInfo
+import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,27 +20,23 @@ sealed class AuthResult {
 
 @Singleton
 class AuthRepository @Inject constructor(
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
+    private val supabase: SupabaseClient
 ) {
     /**
-     * Emits the current FirebaseUser whenever Auth state changes.
+     * Emits the current UserInfo whenever Auth state changes.
      */
-    val currentUserFlow: Flow<FirebaseUser?> = callbackFlow {
-        val listener = FirebaseAuth.AuthStateListener { firebaseAuth ->
-            trySend(firebaseAuth.currentUser)
-        }
-        auth.addAuthStateListener(listener)
-        awaitClose {
-            auth.removeAuthStateListener(listener)
+    val currentUserFlow: Flow<UserInfo?> = supabase.auth.sessionStatus.map { status ->
+        when (status) {
+            is SessionStatus.Authenticated -> status.session.user
+            else -> null
         }
     }
 
-    val currentUser: FirebaseUser?
-        get() = auth.currentUser
+    val currentUser: UserInfo?
+        get() = supabase.auth.currentUserOrNull()
 
     /**
-     * Registers a new user with Firebase Auth, then immediately saves the profile data to Firestore.
+     * Registers a new user with Supabase Auth, then immediately saves the profile data to Postgrest "users" table.
      */
     suspend fun register(
         email: String,
@@ -49,41 +46,56 @@ class AuthRepository @Inject constructor(
         orgName: String
     ): AuthResult {
         return try {
-            val authResult = auth.createUserWithEmailAndPassword(email, password).await()
-            val firebaseUser = authResult.user
-            if (firebaseUser != null) {
-                // Determine names based on role, to match the consolidated roles
-                val finalName = if (role == UserRole.INDIVIDUAL) name else ""
-                val finalOrgName = if (role == UserRole.SHELTER) orgName else ""
-
-                val newUser = User(
-                    uid = firebaseUser.uid,
-                    email = firebaseUser.email ?: email,
-                    role = role,
-                    name = finalName,
-                    orgName = finalOrgName,
-                    location = null
-                )
-
-                // Save to Firestore
-                firestore.collection("users")
-                    .document(firebaseUser.uid)
-                    .set(newUser)
-                    .await()
+            // 1. Create Auth Account
+            val response = supabase.auth.signUpWith(Email) {
+                this.email = email
+                this.password = password
             }
-            AuthResult.Success
-        } catch (e: Exception) {
-            e.printStackTrace()
-            AuthResult.Error(e.localizedMessage ?: "An unknown error occurred")
+
+            // In Supabase 3.0, the ID is often inside the user object of the response
+            val userId = response?.id ?: supabase.auth.currentUserOrNull()?.id
+
+            println("DEBUG: New User ID extracted: $userId")
+
+            if (userId != null) {
+                try {
+                    val finalName = if (role == UserRole.INDIVIDUAL) name else orgName
+
+                    // We must map 'uid' to 'id' to match the Postgres column
+                    // I am using a Map here to be 100% sure the column names match Postgres
+                    val userMap = mapOf(
+                        "id" to userId, // Matches your 'users' table column
+                        "email" to email,
+                        "role" to role.name, // Sends "INDIVIDUAL" or "SHELTER"
+                        "name" to finalName
+                    )
+
+                    supabase.postgrest["users"].insert(userMap)
+
+                    println("DEBUG: Profile insert for $userId SUCCESSFUL")
+                    return AuthResult.Success
+                } catch (dbError: Exception) {
+                    dbError.printStackTrace()
+                    return AuthResult.Error("Auth ok, but profile failed: ${dbError.message}")
+                }
+            } else {
+                return AuthResult.Error("Sign-up succeeded, but UID is null.")
+            }
+        } catch (authError: Exception) {
+            authError.printStackTrace()
+            return AuthResult.Error(authError.localizedMessage ?: "Registration failed")
         }
     }
 
     /**
-     * Signs in an existing user with Firebase Auth.
+     * Signs in an existing user with Supabase Auth.
      */
     suspend fun login(email: String, password: String): AuthResult {
         return try {
-            auth.signInWithEmailAndPassword(email, password).await()
+            supabase.auth.signInWith(Email) {
+                this.email = email
+                this.password = password
+            }
             AuthResult.Success
         } catch (e: Exception) {
             e.printStackTrace()
@@ -94,7 +106,7 @@ class AuthRepository @Inject constructor(
     /**
      * Signs the current user out and clears local state.
      */
-    fun logout() {
-        auth.signOut()
+    suspend fun logout() {
+        supabase.auth.signOut()
     }
 }
