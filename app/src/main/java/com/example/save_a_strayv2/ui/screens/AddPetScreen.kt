@@ -1,9 +1,12 @@
 package com.example.save_a_strayv2.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.ContextCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
@@ -50,11 +53,16 @@ import androidx.compose.material.icons.filled.LocationCity
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Pets
 import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.NearMe
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -74,6 +82,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -85,12 +94,30 @@ import com.example.save_a_strayv2.model.AdoptionStatus
 import com.example.save_a_strayv2.model.VaccinationStatus
 import com.example.save_a_strayv2.viewmodel.AddPetViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddPetScreen(
     viewModel: AddPetViewModel = hiltViewModel(),
     onNavigateBack: () -> Unit
 ) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
+
+    val locationPermissions = arrayOf(
+        Manifest.permission.ACCESS_FINE_LOCATION,
+        Manifest.permission.ACCESS_COARSE_LOCATION
+    )
+
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { permissions ->
+            val granted = permissions[Manifest.permission.ACCESS_FINE_LOCATION] == true ||
+                          permissions[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+            if (granted) {
+                viewModel.fetchCurrentLocation(context)
+            }
+        }
+    )
 
     val mainImagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
@@ -249,36 +276,200 @@ fun AddPetScreen(
                     Spacer(Modifier.height(24.dp))
 
                     // ── Location Section ──────────────────────────────────────────
-                    Text(
-                        text = "Location (Required)",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Location (Required)",
+                            style = MaterialTheme.typography.titleSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        IconButton(onClick = {
+                            val hasFine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                            if (hasFine || hasCoarse) {
+                                viewModel.fetchCurrentLocation(context)
+                            } else {
+                                locationPermissionLauncher.launch(locationPermissions)
+                            }
+                        }) {
+                            Icon(
+                                imageVector = Icons.Filled.LocationOn,
+                                contentDescription = "Use My Current Location",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
 
-                    PetTextField(
-                        value = viewModel.province,
-                        onValueChange = viewModel::onProvinceChanged,
-                        label = "Province",
-                        leadingIcon = Icons.Filled.Map,
-                        imeAction = ImeAction.Next
-                    )
+                    // ── Province Dropdown ─────────────────────────────────────────
+                    var provinceExpanded by remember { mutableStateOf(false) }
+
+                    ExposedDropdownMenuBox(
+                        expanded = provinceExpanded,
+                        onExpandedChange = { provinceExpanded = it }
+                    ) {
+                        OutlinedTextField(
+                            value = viewModel.province,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Province") },
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Filled.Map,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            trailingIcon = {
+                                ExposedDropdownMenuDefaults.TrailingIcon(expanded = provinceExpanded)
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                            ),
+                            shape = RoundedCornerShape(14.dp),
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                        )
+
+                        ExposedDropdownMenu(
+                            expanded = provinceExpanded,
+                            onDismissRequest = { provinceExpanded = false }
+                        ) {
+                            viewModel.provincesList.forEach { prov ->
+                                DropdownMenuItem(
+                                    text = { Text(prov.name) },
+                                    onClick = {
+                                        viewModel.onProvinceSelected(prov.code, prov.name)
+                                        provinceExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
                     Spacer(Modifier.height(12.dp))
-                    PetTextField(
-                        value = viewModel.city,
-                        onValueChange = viewModel::onCityChanged,
-                        label = "City / Municipality",
-                        leadingIcon = Icons.Filled.LocationCity,
-                        imeAction = ImeAction.Next
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    PetTextField(
-                        value = viewModel.barangay,
-                        onValueChange = viewModel::onBarangayChanged,
-                        label = "Barangay",
-                        leadingIcon = Icons.Filled.Place,
-                        imeAction = ImeAction.Next
-                    )
+
+                    // ── City Dropdown ─────────────────────────────────────────────
+                    if (viewModel.citiesList.isNotEmpty()) {
+                        var cityExpanded by remember { mutableStateOf(false) }
+
+                        ExposedDropdownMenuBox(
+                            expanded = cityExpanded,
+                            onExpandedChange = { cityExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.city,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("City / Municipality") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.LocationCity,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = cityExpanded)
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = cityExpanded,
+                                onDismissRequest = { cityExpanded = false }
+                            ) {
+                                viewModel.citiesList.forEach { city ->
+                                    DropdownMenuItem(
+                                        text = { Text(city.name) },
+                                        onClick = {
+                                            viewModel.onCitySelected(city.code, city.name)
+                                            cityExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                    // ── Barangay Dropdown ─────────────────────────────────────────
+                    if (viewModel.barangaysList.isNotEmpty()) {
+                        var barangayExpanded by remember { mutableStateOf(false) }
+
+                        ExposedDropdownMenuBox(
+                            expanded = barangayExpanded,
+                            onExpandedChange = { barangayExpanded = it }
+                        ) {
+                            OutlinedTextField(
+                                value = viewModel.barangay,
+                                onValueChange = {},
+                                readOnly = true,
+                                label = { Text("Barangay") },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Filled.Place,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                trailingIcon = {
+                                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = barangayExpanded)
+                                },
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .menuAnchor()
+                                    .fillMaxWidth()
+                            )
+
+                            ExposedDropdownMenu(
+                                expanded = barangayExpanded,
+                                onDismissRequest = { barangayExpanded = false }
+                            ) {
+                                viewModel.barangaysList.forEach { brgy ->
+                                    DropdownMenuItem(
+                                        text = { Text(brgy.name) },
+                                        onClick = {
+                                            viewModel.onBarangayChanged(brgy.name)
+                                            barangayExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+                    }
+
+                    // ── Contextual Landmark (Stray Sighting only) ─────────────────
+                    if (viewModel.adoptionStatus == AdoptionStatus.STRAY) {
+                        PetTextField(
+                            value = viewModel.landmark,
+                            onValueChange = viewModel::onLandmarkChanged,
+                            label = "Landmark / Exact location",
+                            leadingIcon = Icons.Filled.NearMe,
+                            imeAction = ImeAction.Next
+                        )
+                        Spacer(Modifier.height(12.dp))
+                    }
 
                     Spacer(Modifier.height(24.dp))
 

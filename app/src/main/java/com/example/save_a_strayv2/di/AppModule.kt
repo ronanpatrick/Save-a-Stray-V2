@@ -14,6 +14,8 @@ import io.github.jan.supabase.storage.Storage
 import com.example.save_a_strayv2.repository.PetRepository
 import com.example.save_a_strayv2.repository.PetRepositoryImpl
 import javax.inject.Singleton
+import okhttp3.MediaType.Companion.toMediaType
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 import com.example.save_a_strayv2.BuildConfig
 
@@ -49,5 +51,20 @@ object AppModule {
         supabase: SupabaseClient
     ): com.example.save_a_strayv2.repository.AuthRepository {
         return com.example.save_a_strayv2.repository.AuthRepository(supabase)
+    }
+
+    @Provides
+    @Singleton
+    fun providePhLocationApi(): com.example.save_a_strayv2.network.PhLocationApi {
+        val json = kotlinx.serialization.json.Json {
+            ignoreUnknownKeys = true
+        }
+        val contentType = "application/json".toMediaType()
+        @Suppress("OPT_IN_USAGE")
+        return retrofit2.Retrofit.Builder()
+            .baseUrl("https://psgc.gitlab.io/api/")
+            .addConverterFactory(json.asConverterFactory(contentType))
+            .build()
+            .create(com.example.save_a_strayv2.network.PhLocationApi::class.java)
     }
 }

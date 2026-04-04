@@ -85,6 +85,9 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.0.0")
     implementation("io.ktor:ktor-client-core:3.0.0")
 
+    // Google Play Services Location
+    implementation("com.google.android.gms:play-services-location:21.2.0")
+
     // Hilt - Dependency Injection
     implementation(libs.hilt.android)
     kapt(libs.hilt.android.compiler)
@@ -99,6 +102,7 @@ dependencies {
     // Retrofit - Networking
     implementation(libs.retrofit)
     implementation(libs.retrofit.converter.gson)
+    implementation(libs.retrofit.converter.kotlinx.serialization)
     implementation(libs.okhttp.logging.interceptor)
 
     // Testing

@@ -1,5 +1,8 @@
 package com.example.save_a_strayv2.viewmodel
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.location.Geocoder
 import android.net.Uri
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -11,14 +14,23 @@ import com.example.save_a_strayv2.model.Pet
 import com.example.save_a_strayv2.model.VaccinationStatus
 import com.example.save_a_strayv2.repository.AuthRepository
 import com.example.save_a_strayv2.repository.PetRepository
+import com.example.save_a_strayv2.network.PhLocationApi
+import com.example.save_a_strayv2.network.Province
+import com.example.save_a_strayv2.network.City
+import com.example.save_a_strayv2.network.Barangay
+import com.google.android.gms.location.LocationServices
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.util.Locale
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel
 class AddPetViewModel @Inject constructor(
     private val petRepository: PetRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val phLocationApi: PhLocationApi
 ) : ViewModel() {
 
     var name: String by mutableStateOf("")
@@ -37,7 +49,20 @@ class AddPetViewModel @Inject constructor(
         private set
     var barangay: String by mutableStateOf("")
         private set
+    var landmark: String by mutableStateOf("")
+        private set
+    var provincesList: List<Province> by mutableStateOf(emptyList())
+        private set
+    var citiesList: List<City> by mutableStateOf(emptyList())
+        private set
+    var barangaysList: List<Barangay> by mutableStateOf(emptyList())
+        private set
     var adoptionStatus: AdoptionStatus by mutableStateOf(AdoptionStatus.AVAILABLE)
+        private set
+
+    var latitude: Double? by mutableStateOf(null)
+        private set
+    var longitude: Double? by mutableStateOf(null)
         private set
 
     var mainImageUri: Uri? by mutableStateOf(null)
@@ -52,17 +77,108 @@ class AddPetViewModel @Inject constructor(
     var isSuccess: Boolean by mutableStateOf(false)
         private set
 
+    init {
+        fetchProvinces()
+    }
+
+    private fun fetchProvinces() {
+        viewModelScope.launch {
+            try {
+                provincesList = phLocationApi.getProvinces().sortedBy { it.name }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
     fun onNameChanged(value: String)              { name = value;              formError = null }
     fun onBreedChanged(value: String)             { breed = value;             formError = null }
     fun onVaccinationStatusChanged(value: VaccinationStatus) { vaccinationStatus = value; formError = null }
     fun onPersonalityTraitsChanged(value: String) { personalityTraits = value; formError = null }
     fun onMedicalNotesChanged(value: String)      { medicalNotes = value;      formError = null }
+    fun onLandmarkChanged(value: String)          { landmark = value;          formError = null }
+
     fun onProvinceChanged(value: String)          { province = value;          formError = null }
     fun onCityChanged(value: String)              { city = value;              formError = null }
     fun onBarangayChanged(value: String)          { barangay = value;          formError = null }
+
+    fun onProvinceSelected(code: String, name: String) {
+        province = name
+        city = ""
+        barangay = ""
+        citiesList = emptyList()
+        barangaysList = emptyList()
+        formError = null
+        
+        viewModelScope.launch {
+            try {
+                citiesList = phLocationApi.getCitiesByProvince(code).sortedBy { it.name }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    fun onCitySelected(code: String, name: String) {
+        city = name
+        barangay = ""
+        barangaysList = emptyList()
+        formError = null
+        
+        viewModelScope.launch {
+            try {
+                barangaysList = phLocationApi.getBarangaysByCity(code).sortedBy { it.name }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+    
+    fun onBarangaySelected(name: String) {
+        barangay = name
+        formError = null
+    }
     fun onAdoptionStatusChanged(value: AdoptionStatus) { adoptionStatus = value; formError = null }
     fun onMainImageSelected(uri: Uri?)            { mainImageUri = uri;        formError = null }
     fun onGalleryImagesSelected(uris: List<Uri>)  { galleryUris = uris;        formError = null }
+
+    @SuppressLint("MissingPermission")
+    fun fetchCurrentLocation(context: Context) {
+        val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
+        fusedLocationClient.lastLocation.addOnSuccessListener { location ->
+            if (location != null) {
+                latitude = location.latitude
+                longitude = location.longitude
+
+                viewModelScope.launch {
+                    withContext(Dispatchers.IO) {
+                        try {
+                            val geocoder = Geocoder(context, Locale.getDefault())
+                            val addresses = geocoder.getFromLocation(location.latitude, location.longitude, 1)
+                            if (!addresses.isNullOrEmpty()) {
+                                val address = addresses[0]
+                                val extractedProvince = address.adminArea ?: address.subAdminArea ?: ""
+                                val extractedCity = address.locality ?: address.subAdminArea ?: ""
+                                val extractedBarangay = address.subLocality ?: ""
+                                
+                                withContext(Dispatchers.Main) {
+                                    if (extractedProvince.isNotBlank()) province = extractedProvince
+                                    if (extractedCity.isNotBlank()) city = extractedCity
+                                    if (extractedBarangay.isNotBlank()) barangay = extractedBarangay
+                                }
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
+            } else {
+                formError = "Could not fetch location. Please ensure location services are enabled."
+            }
+        }.addOnFailureListener {
+            formError = "Failed to get location: ${it.message}"
+        }
+    }
 
     private fun validate(): Boolean {
         if (name.isBlank()) {
